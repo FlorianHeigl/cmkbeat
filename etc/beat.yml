@@ -1,0 +1,51 @@
+cmkbeat:
+  period: 30s
+  cmkHost: "192.168.0.19:6557"
+
+name: livestatus
+
+output.elasticsearch:
+  enabled: true
+  hosts: ["localhost:9200"]
+  index: "cmkbeat-%{+yyyy.MM.dd}"
+  template.enabled: true
+  template.name: "cmkbeat"
+  template.path: "${path.config}/cmkbeat.template.json"
+  template.overwrite: true
+  template.versions.2x.enabled: false
+
+output.logstash:
+  enabled: false
+  hosts: ["localhost:5044"]
+  timeout: 30
+  max_retries: 0
+  index: 'livestatus'
+
+output.kafka:
+  enabled: false
+
+output.redis:
+  enabled: false
+
+output.file:
+  enabled: false
+
+output.console:
+  enabled: false
+
+path:
+  home: /usr/share/cmkbeat
+  config: /etc/cmkbeat
+  data: /var/lib/cmkbeat
+  logs: /var/log/cmkbeat
+
+logging:
+  level: info
+  to_syslog: false
+  metrics.enabled: false
+  to_files: true
+  files:
+    path: /var/log/cmkbeat
+    name: cmkbeat
+    rotateeverybytes: 10485760
+    keepfiles: 4  
