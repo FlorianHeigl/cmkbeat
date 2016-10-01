@@ -5,8 +5,9 @@
         "norms": false
       },
       "_meta": {
-        "version": "6.0.0-alpha1"
+        "version": "1.0-alpha1"
       },
+	  "numeric_detection": true,
       "dynamic_templates": [
         {
           "fields": {
@@ -69,5 +70,5 @@
   "settings": {
     "index.refresh_interval": "5s"
   },
-  "template": "cmkbeat-*"
+  "template": "livestatus-*"
 }

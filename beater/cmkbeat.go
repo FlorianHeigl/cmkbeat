@@ -3,6 +3,7 @@ package beater
 import (
 	"fmt"
 	"time"
+	"strings"
 
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
@@ -48,12 +49,7 @@ func (bt *Cmkbeat) Run(b *beat.Beat) error {
 		err := bt.lsQuery(bt.config.Cmkhost, b.Name)
 		if err != nil {
 			logp.Warn("Error executing query: %s", err)
-			event := common.MapStr {
-				"@timestamp":	common.Time(time.Now()),
-				"type":		b.Name,
-				"error":	err,
-			}
-			bt.client.PublishEvent(event)
+			return err
 		}
 	}
 }
@@ -64,6 +60,13 @@ func (bt *Cmkbeat) Stop() {
 }
 
 func (bt *Cmkbeat) lsQuery(lshost string, beatname string) error {
+	
+	defer func() {
+		if err := recover(); err != nil {
+			logp.Warn("Error: %s", err)
+		}
+    }()
+	
     start := time.Now()
 
     l := livestatus.NewLivestatus("tcp", lshost)
@@ -72,52 +75,90 @@ func (bt *Cmkbeat) lsQuery(lshost string, beatname string) error {
 
     resp, err := q.Exec()
     if err != nil {
-	return err
+		return err
     }
 
     var numRecords int = 0
-    var errMsg string = ""
+    var errMsg string
 
     for _, r := range resp.Records {
         host_name, err := r.GetString("host_name")
-	if err != nil {
-		logp.Warn("Problem parsing response fields: %s", err)
-	}
-	description, err := r.GetString("description")
-	if err != nil {
-		logp.Warn("Problem parsing response fields: %s", err)
-	}
-        state, err := r.GetInt("state")
-	if err != nil {
-		logp.Warn("Problem parsing response fields: %s", err)
-	}
-	plugin_output, err := r.GetString("plugin_output")
-	if err != nil {
-		logp.Warn("Problem parsing response fields: %s", err)
-	}
-	perf_data, err := r.GetString("perf_data")
-	if err != nil {
-		logp.Warn("Problem parsing response fields: %s", err)
-	}
-	if err != nil {
-		errMsg = err.Error()
-	} else {
-		errMsg = ""
-	}
+		if err != nil {
+			logp.Warn("Problem parsing response fields: %s", err)
+			errMsg = err.Error()
+		}
+		description, err := r.GetString("description")
+		if err != nil {
+			logp.Warn("Problem parsing response fields: %s", err)
+			errMsg = err.Error()
+		}
+		state, err := r.GetInt("state")
+		if err != nil {
+			logp.Warn("Problem parsing response fields: %s", err)
+			errMsg = err.Error()
+		}
+		plugin_output, err := r.GetString("plugin_output")
+		if err != nil {
+			logp.Warn("Problem parsing response fields: %s", err)
+			errMsg = err.Error()
+		}
+		perf_data, err := r.GetString("perf_data")
+		if err != nil {
+			logp.Warn("Problem parsing response fields: %s", err)
+			errMsg = err.Error()
+		}
+		
+		var perfObjMap map[string]map[string]string
+		//var perfObjMap common.MapStr
+		var perfDataSplit []string
+		
+		perfDataSplit = strings.Split(perf_data, " ")
+		perfObjMap = make(map[string]map[string]string)
+		for _, perfObj := range perfDataSplit {
+			var perfObjSplit []string
+			var dataSplit []string
+			perfObjSplit = strings.Split(perfObj, "=")
+			item := perfObjSplit[0]
+			data := perfObjSplit[1]
+			fmt.Printf("item is %s, data is %s", item, data)
+			dataSplit = strings.Split(data, ";")
+			fmt.Printf("length is %v", len(dataSplit))
+			perfObjMap[item] = make(map[string]string)
+			if len(dataSplit) >= 1 {
+				perfObjMap[item]["value"] = dataSplit[0]
+			}
+			if len(dataSplit) >= 2 {
+				perfObjMap[item]["min"] = dataSplit[1]
+			}
+			if len(dataSplit) >= 3 {
+				perfObjMap[item]["max"] = dataSplit[2]
+			}
+			if len(dataSplit) >= 4 {
+				perfObjMap[item]["warn"] = dataSplit[3]
+			}
+			if len(dataSplit) >= 5 {
+				perfObjMap[item]["crit"] = dataSplit[4]
+			}
+		}
 
-	event := common.MapStr {
-		"@timestamp":	common.Time(time.Now()),
-		"type":		beatname,
-		"host":		host_name,
-		"description":	description,
-		"state":	state,
-		"output":	plugin_output,
-		"perfdata":	perf_data,
-		"error":	errMsg,
-	}
-
-	bt.client.PublishEvent(event)
-	numRecords++
+		event := common.MapStr {
+			"@timestamp":	common.Time(time.Now()),
+			"type":		beatname,
+			"host":		host_name,
+			"description":	description,
+			"state":	state,
+			"output":	plugin_output,
+			"perfdata":	perf_data,
+		}
+		
+		if errMsg != "" {
+			event["error"] = errMsg
+		}
+		
+		event["metrics"] = perfObjMap
+	
+		bt.client.PublishEvent(event)
+		numRecords++
     }
 
     elapsed := time.Since(start)

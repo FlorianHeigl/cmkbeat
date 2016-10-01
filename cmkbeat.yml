@@ -7,9 +7,9 @@ name: livestatus
 output.elasticsearch:
   enabled: true
   hosts: ["localhost:9200"]
-  index: "cmkbeat-%{+yyyy.MM.dd}"
+  index: "livestatus-%{+yyyy.MM.dd}"
   template.enabled: true
-  template.name: "cmkbeat"
+  template.name: "livestatus"
   template.path: "${path.config}/cmkbeat.template.json"
   template.overwrite: true
   template.versions.2x.enabled: false
