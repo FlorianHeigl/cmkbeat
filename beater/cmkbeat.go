@@ -109,7 +109,6 @@ func (bt *Cmkbeat) lsQuery(lshost string, beatname string) error {
 		}
 		
 		var perfObjMap map[string]map[string]string
-		//var perfObjMap common.MapStr
 		var perfDataSplit []string
 		
 		perfDataSplit = strings.Split(perf_data, " ")
@@ -120,9 +119,7 @@ func (bt *Cmkbeat) lsQuery(lshost string, beatname string) error {
 			perfObjSplit = strings.Split(perfObj, "=")
 			item := perfObjSplit[0]
 			data := perfObjSplit[1]
-			fmt.Printf("item is %s, data is %s", item, data)
 			dataSplit = strings.Split(data, ";")
-			fmt.Printf("length is %v", len(dataSplit))
 			perfObjMap[item] = make(map[string]string)
 			if len(dataSplit) >= 1 {
 				perfObjMap[item]["value"] = dataSplit[0]
